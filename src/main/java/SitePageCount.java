@@ -38,7 +38,7 @@ public class SitePageCount {
         }
     }
 
-    public static class ArchiveRecordReducer extends Reducer<Text, LongWritable , Text , LongWritable> {
+    public static class ArchiveRecordReducer extends Reducer<Text, LongWritable, Text , LongWritable> {
 
         public void reduce(Text key, Iterable<LongWritable> values, Context context) throws IOException, InterruptedException {
 
@@ -46,17 +46,14 @@ public class SitePageCount {
             int count = 0;
 
             for (LongWritable val: values) {
-                System.out.println(val);
                 sum += val.get();
                 count++;
             }
 
             int avg = sum / count;
 
-            LongWritable total = new LongWritable();
-            total.set(avg);
-
-            context.write(key, total);
+            context.write(key, new LongWritable(avg));
+            context.write(key, new LongWritable(count));
         }
     }
 
