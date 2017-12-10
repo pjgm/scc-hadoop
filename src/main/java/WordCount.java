@@ -1,6 +1,7 @@
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -20,7 +21,9 @@ public class WordCount {
 
         public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
 
-            System.out.println(key.toString());
+            LongWritable keyval = (LongWritable) key;
+            System.out.println("Key value: " + keyval.get());
+
 
             StringTokenizer itr = new StringTokenizer(value.toString());
 
