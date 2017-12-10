@@ -32,7 +32,7 @@ public class SitePageCount {
                 Text host = new Text();
                 host.set(url.getHost());
 
-                context.write(host, new LongWritable(1));
+                context.write(host, new LongWritable(record.getHeader().getContentLength()));
             }
 
         }
@@ -43,13 +43,19 @@ public class SitePageCount {
         public void reduce(Text key, Iterable<LongWritable> values, Context context) throws IOException, InterruptedException {
 
             int sum = 0;
+            int count = 0;
+
             for (LongWritable val: values) {
                 System.out.println(val);
                 sum += val.get();
+                count++;
             }
 
+            int avg = sum / count;
+
             LongWritable total = new LongWritable();
-            total.set(sum);
+            total.set(avg);
+
             context.write(key, total);
         }
     }
