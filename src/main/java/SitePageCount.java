@@ -1,9 +1,8 @@
-import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
@@ -18,7 +17,10 @@ import java.net.URL;
 
 public class SitePageCount {
 
-    public static class SiteMapper extends Mapper<Text, ArchiveReader, Text, LongWritable> {
+    public static class SiteMapper extends Mapper<Text, ArchiveReader, Text, SiteValue> {
+
+        private final static IntWritable ONE = new IntWritable(1);
+        private LongWritable contentLength = new LongWritable();
 
         public void map(Text key, ArchiveReader value, Context context) throws IOException, InterruptedException {
 
@@ -32,28 +34,36 @@ public class SitePageCount {
                 Text host = new Text();
                 host.set(url.getHost());
 
-                context.write(host, new LongWritable(record.getHeader().getContentLength()));
+                contentLength.set(record.getHeader().getContentLength());
+
+                SiteValue val = new SiteValue(ONE, contentLength);
+
+                context.write(host, val);
             }
 
         }
     }
 
-    public static class ArchiveRecordReducer extends Reducer<Text, LongWritable, Text , LongWritable> {
+    public static class ArchiveRecordReducer extends Reducer<Text, SiteValue, Text , SiteValue> {
 
-        public void reduce(Text key, Iterable<LongWritable> values, Context context) throws IOException, InterruptedException {
+        public void reduce(Text key, Iterable<SiteValue> values, Context context) throws IOException, InterruptedException {
 
             int sum = 0;
             int count = 0;
 
-            for (LongWritable val: values) {
-                sum += val.get();
-                count++;
+            for (SiteValue val: values) {
+                sum += val.getAvgSize().get();
+                count += val.getUrlCount().get();
             }
 
             int avg = sum / count;
 
-            context.write(key, new LongWritable(avg));
-            context.write(key, new LongWritable(count));
+            IntWritable urlCount = new IntWritable(count);
+            LongWritable avgSize = new LongWritable(avg);
+
+            SiteValue result = new SiteValue(urlCount, avgSize);
+
+            context.write(key, result);
         }
     }
 
@@ -66,7 +76,7 @@ public class SitePageCount {
         job.setReducerClass(SitePageCount.ArchiveRecordReducer.class);
         job.setInputFormatClass(WARCFileInputFormat.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(LongWritable.class);
+        job.setOutputValueClass(SiteValue.class);
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
         System.exit(job.waitForCompletion(true) ? 0 : 1);
