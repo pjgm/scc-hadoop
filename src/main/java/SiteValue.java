@@ -11,7 +11,6 @@ public class SiteValue implements WritableComparable<SiteValue> {
     private IntWritable urlCount;
     private LongWritable avgSize;
 
-
     public SiteValue() {
         this.urlCount = new IntWritable();
         this.avgSize = new LongWritable();
@@ -33,7 +32,7 @@ public class SiteValue implements WritableComparable<SiteValue> {
     }
 
     public int compareTo(SiteValue siteValue) {
-        return 0;
+        return siteValue.urlCount.compareTo(this.urlCount);
     }
 
     public IntWritable getUrlCount() {
