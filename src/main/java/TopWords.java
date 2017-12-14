@@ -71,13 +71,13 @@ public class TopWords {
             for (WordsCount wc: values) {
                 for (MapWritable.Entry e: wc.getWordsCounter().entrySet()) {
                     if (!resultMap.containsKey(e.getKey())) {
-                        resultMap.put((Text)e.getKey(), (IntWritable)e.getValue());
+                        resultMap.put(key, (IntWritable)e.getValue());
                     }
                     else {
                         IntWritable count = (IntWritable) e.getValue();
                         IntWritable resCount = (IntWritable) resultMap.get(e.getKey());
                         IntWritable total = new IntWritable(count.get() + resCount.get());
-                        resultMap.put((Text)e.getKey(), total);
+                        resultMap.put(key, total);
                     }
                 }
             }
