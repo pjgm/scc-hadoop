@@ -1,25 +1,63 @@
-import java.util.HashMap;
-import java.util.Map;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.MapWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.WritableComparable;
 
-public class WordsCount {
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 
-    private Map<String, Integer> wordsCounter;
+public class WordsCount implements WritableComparable<WordsCount> {
+
+    private MapWritable wordsCounter;
 
     public WordsCount() {
-        wordsCounter = new HashMap<>();
+        wordsCounter = new MapWritable();
+    }
+
+    public WordsCount(MapWritable wordsCounter) {
+        this.wordsCounter = wordsCounter;
     }
 
     public void addWord(String word) {
-        if (!wordsCounter.containsKey(word))
-            wordsCounter.put(word, 1);
+        if (!wordsCounter.containsKey(word)) {
+            Text w = new Text(word);
+            IntWritable c = new IntWritable(1);
+            wordsCounter.put(w, c);
+        }
         else {
-            int count = wordsCounter.get(word);
-            wordsCounter.put(word, ++count);
+            IntWritable countWritable = (IntWritable) wordsCounter.get(word);
+            int count = countWritable.get();
+            wordsCounter.put(new Text(word), new IntWritable(++count));
         }
     }
 
-    public Map<String, Integer> getTopWords() {
-        wordsCounter.entrySet().stream().sorted(Map.Entry.<String, Integer>comparingByValue().reversed()).limit(5).forEach(System.out::println);
-        return null;
+    public MapWritable getWordsCounter() {
+        return wordsCounter;
     }
+
+    @Override
+    public int compareTo(WordsCount wordsCount) {
+        return 0;
+    }
+
+    @Override
+    public void write(DataOutput dataOutput) throws IOException {
+        wordsCounter.write(dataOutput);
+    }
+
+    @Override
+    public void readFields(DataInput dataInput) throws IOException {
+        wordsCounter.readFields(dataInput);
+    }
+
+    @Override
+    public String toString() {
+        String result = "\n";
+        for (MapWritable.Entry e: wordsCounter.entrySet()) {
+            result += e.getKey().toString() + "\t" + e.getValue().toString() + "\n";
+        }
+        return result;
+    }
+
 }

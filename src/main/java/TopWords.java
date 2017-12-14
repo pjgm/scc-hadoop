@@ -2,7 +2,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -20,14 +20,12 @@ import java.util.List;
 
 public class TopWords {
 
-    public static class SiteMapper extends Mapper<Text, ArchiveReader, Text, SiteValue> {
-
-        private final static IntWritable ONE = new IntWritable(1);
+    public static class SiteMapper extends Mapper<Text, ArchiveReader, Text, WordsCount> {
 
         private List<String> getRecordWords(String content) {
 
             String[] words = content.replaceAll("\\p{P}", "").toLowerCase().split("\\s+");
-            List<String> latinWords = new ArrayList<String>();
+            List<String> latinWords = new ArrayList<>();
 
             for (String word : words)
                 if (word.matches("\\p{IsLatin}+"))
@@ -58,41 +56,33 @@ public class TopWords {
                     wc.addWord(word);
                 }
 
-                wc.getTopWords();
-
-//                System.out.println(isValid);
-//                System.out.println(content.substring(0, Math.min(500, content.length())));
-//                System.out.println((content.length() > 500 ? "..." : ""));
-//
-                // Pretty printing to make the output more readable
-                System.out.println("=-=-=-=-=-=-=-=-=");
-                SiteValue val = new SiteValue(ONE, new LongWritable(100));
-
-                context.write(host, val);
+                context.write(host, wc);
             }
 
         }
     }
 
-    public static class ArchiveRecordReducer extends Reducer<Text, SiteValue, Text , SiteValue> {
+    public static class ArchiveRecordReducer extends Reducer<Text, WordsCount, Text , WordsCount> {
 
-        public void reduce(Text key, Iterable<SiteValue> values, Context context) throws IOException, InterruptedException {
+        public void reduce(Text key, Iterable<WordsCount> values, Context context) throws IOException, InterruptedException {
 
-            int sum = 0;
-            int count = 0;
+            MapWritable resultMap = new MapWritable();
 
-            for (SiteValue val: values) {
-                sum += val.getAvgSize().get();
-                count += val.getUrlCount().get();
+            for (WordsCount wc: values) {
+                for (MapWritable.Entry e: wc.getWordsCounter().entrySet()) {
+                    if (!resultMap.containsKey(e.getKey())) {
+                        resultMap.put((Text)e.getKey(), (IntWritable)e.getValue());
+                    }
+                    else {
+                        IntWritable count = (IntWritable) e.getValue();
+                        IntWritable resCount = (IntWritable) resultMap.get(e.getKey());
+                        IntWritable total = new IntWritable(count.get() + resCount.get());
+                        resultMap.put((Text)e.getKey(), total);
+                    }
+                }
             }
 
-            int avg = sum / count;
-
-            IntWritable urlCount = new IntWritable(count);
-            LongWritable avgSize = new LongWritable(avg);
-
-            SiteValue result = new SiteValue(urlCount, avgSize);
-
+            WordsCount result = new WordsCount(resultMap);
             context.write(key, result);
         }
     }
@@ -106,7 +96,7 @@ public class TopWords {
         job.setReducerClass(TopWords.ArchiveRecordReducer.class);
         job.setInputFormatClass(WARCFileInputFormat.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(SiteValue.class);
+        job.setOutputValueClass(WordsCount.class);
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
         System.exit(job.waitForCompletion(true) ? 0 : 1);
