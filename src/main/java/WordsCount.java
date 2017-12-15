@@ -6,6 +6,9 @@ import org.apache.hadoop.io.WritableComparable;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class WordsCount implements WritableComparable<WordsCount> {
 
@@ -20,15 +23,18 @@ public class WordsCount implements WritableComparable<WordsCount> {
     }
 
     public void addWord(String word) {
-        if (!wordsCounter.containsKey(word)) {
+
+        Text wordText = new Text(word);
+
+        if (!wordsCounter.containsKey(wordText)) {
             Text w = new Text(word);
             IntWritable c = new IntWritable(1);
             wordsCounter.put(w, c);
         }
         else {
-            IntWritable countWritable = (IntWritable) wordsCounter.get(word);
+            IntWritable countWritable = (IntWritable) wordsCounter.get(wordText);
             int count = countWritable.get();
-            wordsCounter.put(new Text(word), new IntWritable(++count));
+            wordsCounter.put(wordText, new IntWritable(++count));
         }
     }
 
@@ -53,8 +59,30 @@ public class WordsCount implements WritableComparable<WordsCount> {
 
     @Override
     public String toString() {
+
+        List<MapWritable.Entry> topEntries = new ArrayList<>();
+
+        for (int i = 0; i < 5; i++ ) {
+            int highest = Integer.MIN_VALUE;
+            MapWritable.Entry entry = null;
+            for (MapWritable.Entry e : wordsCounter.entrySet()) {
+                IntWritable val = (IntWritable) e.getValue();
+                if (val.get() > highest) {
+                    highest = val.get();
+                    entry = e;
+                }
+            }
+            topEntries.add(entry);
+            if (entry != null) {
+                wordsCounter.remove(entry.getKey());
+            }
+        }
+
         String result = "\n";
-        for (MapWritable.Entry e: wordsCounter.entrySet()) {
+
+        for (MapWritable.Entry e: topEntries) {
+            if (e == null)
+                continue;
             result += e.getKey().toString() + "\t" + e.getValue().toString() + "\n";
         }
         return result;
